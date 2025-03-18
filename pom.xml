@@ -146,6 +146,8 @@
 
 <!--	</dependencies>-->
 
+
+
 	<dependencies>
 		<!-- Spring Boot Web and REST support -->
 		<dependency>
@@ -206,19 +208,19 @@
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- AWS SDK for Java v2 Core -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>core</artifactId>
-			<version>2.17.107</version> <!-- Ensure this is the correct version -->
-		</dependency>
+<!--		&lt;!&ndash; AWS SDK for Java v2 Core &ndash;&gt;-->
+<!--		<dependency>-->
+<!--			<groupId>software.amazon.awssdk</groupId>-->
+<!--			<artifactId>core</artifactId>-->
+<!--			<version>2.17.107</version> &lt;!&ndash; Ensure this is the correct version &ndash;&gt;-->
+<!--		</dependency>-->
 
-		<!-- AWS SDK for STS -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>sts</artifactId>
-			<version>2.17.107</version> <!-- Ensure this matches the AWS SDK version -->
-		</dependency>
+<!--		&lt;!&ndash; AWS SDK for STS &ndash;&gt;-->
+<!--		<dependency>-->
+<!--			<groupId>software.amazon.awssdk</groupId>-->
+<!--			<artifactId>sts</artifactId>-->
+<!--			<version>2.17.107</version> &lt;!&ndash; Ensure this matches the AWS SDK version &ndash;&gt;-->
+<!--		</dependency>-->
 
 		<!-- Apache HTTPClient for making requests -->
 		<dependency>
@@ -247,6 +249,34 @@
 			<artifactId>jackson-module-kotlin</artifactId>
 			<version>2.15.0</version> <!-- Ensure this matches jackson-databind version -->
 		</dependency>
+
+		<!-- AWS SDK Core -->
+<!--		<dependency>-->
+<!--			<groupId>software.amazon.awssdk</groupId>-->
+<!--			<artifactId>core</artifactId>-->
+<!--			<version>2.31.2</version>-->
+<!--		</dependency>-->
+
+		<!-- AWS SDK Auth -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>auth</artifactId>
+			<version>2.31.2</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.json</groupId>
+			<artifactId>json</artifactId>
+			<version>20210307</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>bedrockruntime</artifactId>
+			<version>2.31.2</version>
+		</dependency>
+
+
 	</dependencies>
 
 
@@ -287,6 +317,10 @@
 			<releases>
 				<enabled>false</enabled>
 			</releases>
+		</repository>
+		<repository>
+			<id>central</id>
+			<url>https://repo.maven.apache.org/maven2</url>
 		</repository>
 	</repositories>
 	<pluginRepositories>

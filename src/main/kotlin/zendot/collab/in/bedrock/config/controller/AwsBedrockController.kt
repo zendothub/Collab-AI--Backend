@@ -1,15 +1,25 @@
 package zendot.collab.`in`.bedrock.config.controller
 
-import org.springframework.web.bind.annotation.GetMapping
-import org.springframework.web.bind.annotation.RequestParam
-import org.springframework.web.bind.annotation.RestController
-import zendot.collab.`in`.bedrock.config.service.impl.AwsBedrockService
+import org.springframework.web.bind.annotation.*
+import zendot.collab.`in`.bedrock.config.BedrockAgentService
 
 @RestController
-class AwsBedrockController(private val awsBedrockService: AwsBedrockService) {
+class AwsBedrockController(private val bedrockAgentService: BedrockAgentService) {
 
-    @GetMapping("/send-message")
-    fun sendMessage(@RequestParam prompt: String): Map<String, Any> {
-        return awsBedrockService.interactWithAwsBedrock(prompt)
+
+    @PostMapping("/create-ticket")
+    fun createTicket(@RequestBody requestBody: Map<String, Any>): Map<String, Any> {
+        val prompt = requestBody["prompt"] as? String ?: "Create a ticket"
+
+        // Call the service and return the response from the agent
+        val response = bedrockAgentService.converseWithAgent(prompt)
+
+        // Return the agent's response as the HTTP response
+        return mapOf("response" to response)
+    }
+
+    @GetMapping("/converse")
+    fun converse(@RequestParam prompt: String): String {
+        return bedrockAgentService.converseWithAgent(prompt)
     }
 }
