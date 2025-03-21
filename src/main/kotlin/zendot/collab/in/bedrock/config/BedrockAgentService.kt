@@ -1,119 +1,92 @@
 package zendot.collab.`in`.bedrock.config
 
-import org.json.JSONObject
-import org.springframework.stereotype.Service
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider
-import software.amazon.awssdk.core.SdkBytes
-import software.amazon.awssdk.regions.Region
-import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient
-import software.amazon.awssdk.services.bedrockruntime.model.ContentBlock
-import software.amazon.awssdk.services.bedrockruntime.model.ConversationRole
-import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelRequest
-import software.amazon.awssdk.services.bedrockruntime.model.InvokeModelResponse
-import software.amazon.awssdk.services.bedrockruntime.model.Message
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.stereotype.Service
+import reactor.core.publisher.Flux
+import reactor.core.publisher.FluxSink
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
+import software.amazon.awssdk.core.SdkBytes
+import software.amazon.awssdk.regions.Region
+import software.amazon.awssdk.services.bedrockagentruntime.BedrockAgentRuntimeAsyncClient
+import software.amazon.awssdk.services.bedrockagentruntime.model.InvokeAgentRequest
+import software.amazon.awssdk.services.bedrockagentruntime.model.InvokeAgentResponseHandler
+import software.amazon.awssdk.services.bedrockagentruntime.model.PayloadPart
 
-//
-//@Service
-//class BedrockAgentService {
-////
-////    private val client: BedrockRuntimeClient = BedrockRuntimeClient.builder()
-////        .credentialsProvider(DefaultCredentialsProvider.create())
-////        .region(Region.US_EAST_1)  // Specify your region
-////        .build()
-////
-////    fun converseWithAgent(prompt: String): String {
-////        val modelId = "ai21.j2-mid-v1"  // Replace with your actual model ID
-////
-////        // Create a message to send to the agent
-////        val message = Message.builder()
-////            .content(ContentBlock.fromText(prompt))
-////            .role(ConversationRole.USER)
-////            .build()
-////
-////        try {
-////            // Create the request to invoke the model
-////            val request = InvokeModelRequest.builder()
-////                .modelId(modelId)
-////                .body(SdkBytes.fromUtf8String(message.content().toString()))  // Convert content to byte array
-////                .build()
-////
-////            // Call Bedrock API to get the response
-////            val response: InvokeModelResponse = client.invokeModel(request)
-////
-////            // Extract response body as a String
-////            val responseBody = response.body().asUtf8String()
-////
-////            // Log or process the response text
-////            println("Response: $responseBody")
-////
-////            // Assuming the response contains a `completions` field with text data
-////            val text = JSONObject(responseBody).getJSONArray("completions")
-////                .getJSONObject(0)
-////                .getJSONObject("data")
-////                .getString("text")
-////
-////            // Return the response text
-////            return text
-////        } catch (e: Exception) {
-////            e.printStackTrace()
-////            return "Error calling Bedrock API: ${e.message}"
-////        }
-////    }
-//
-//
-//}
+import java.nio.charset.StandardCharsets
+
 @Service
 class BedrockAgentService(
     @Value("\${aws.accessKeyId}") private val accessKeyId: String,
     @Value("\${aws.secretAccessKey}") private val secretAccessKey: String,
-    @Value("\${aws.region}") private val region: String
+    @Value("\${aws.region}") private val region: String,
+    @Value("\${aws.agentId}") private val agentId: String,
+    @Value("\${aws.agentAliasId}") private val agentAliasId: String,
+    @Value("\${aws.sessionId}") private val sessionId: String
 ) {
 
-    private val client: BedrockRuntimeClient = BedrockRuntimeClient.builder()
-        .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKeyId, secretAccessKey))) // Use StaticCredentialsProvider
-        .region(Region.of(region))  // Set region from properties
+    // Initialize the BedrockAgentRuntimeClient with credentials and region
+    private val client: BedrockAgentRuntimeAsyncClient = BedrockAgentRuntimeAsyncClient.builder()
+        .credentialsProvider(
+            StaticCredentialsProvider.create(
+                AwsBasicCredentials.create(accessKeyId, secretAccessKey)
+            )
+        )
+        .region(Region.of(region))
         .build()
 
-    fun converseWithAgent(prompt: String): String {
-        // Use Agent ARN (Inference Profile ARN)
-        val modelArn = "arn:aws:bedrock:ap-south-1:851725265776:inference-profile/apac.amazon.nova-pro-v1:0"
+    /**
+     * Invokes the Bedrock agent and returns a CompletableFuture<Void> that completes when the response is fully processed.
+     *
+     * @param inputText The input text to send to the agent.
+     * @return A CompletableFuture<Void> that completes when the response is fully processed.
+     */
 
-        // Create a message to send to the agent
-        val message = Message.builder()
-            .content(ContentBlock.fromText(prompt))
-            .role(ConversationRole.USER)
+    fun converseWithAgent(prompt: String): Flux<String> {
+        val request = InvokeAgentRequest.builder()
+            .agentId(agentId)
+            .agentAliasId(agentAliasId)
+            .sessionId(sessionId)
+            .inputText(prompt)
             .build()
 
-        try {
-            // Create the request to invoke the agent (using the Agent ARN)
-            val request = InvokeModelRequest.builder()
-                .modelId(modelArn)  // Agent ARN here
-                .body(SdkBytes.fromUtf8String(prompt))
+        // Create a Flux to stream the response chunks
+        return Flux.create { sink: FluxSink<String> ->
+            val handler = InvokeAgentResponseHandler.builder()
+                .onResponse { response ->
+                    println("Initial response received.")
+                }
+                .onEventStream { subscriber ->
+                    subscriber.subscribe { event ->
+                        when (event) {
+                            is PayloadPart -> {
+                                // Handle the payload chunk
+                                val sdkBytes: SdkBytes = event.bytes()
+                                val byteBuffer = sdkBytes.asByteBuffer() // Convert SdkBytes to ByteBuffer
+                                val decodedResponse = StandardCharsets.UTF_8.decode(byteBuffer).toString()
+                                println("Chunk received: $decodedResponse")
+                                sink.next(decodedResponse) // Emit the chunk to the Flux
+                            }
+
+                            else -> {
+                                // Handle other types of events (e.g., FilePart, ReturnControlPayload, TracePart)
+                                println("Received event: ${event.sdkEventType()}")
+                            }
+                        }
+                    }
+                }
+                .onError { exception ->
+                    exception.printStackTrace()
+                    sink.error(exception)
+                }
+                .onComplete {
+                    sink.complete()
+                }
                 .build()
 
-            // Call Bedrock API to get the response from the agent
-            val response: InvokeModelResponse = client.invokeModel(request)
-
-            // Extract response body as a String
-            val responseBody = response.body().asUtf8String()
-
-            // Assuming the response contains a `completions` field with text data
-            val text = JSONObject(responseBody).getJSONArray("completions")
-                .getJSONObject(0)
-                .getJSONObject("data")
-                .getString("text")
-
-            // Return the response text
-            return text
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return "Error calling Bedrock API: ${e.message}"
+            // Invoke the agent asynchronously
+            client.invokeAgent(request, handler)
         }
     }
+
 }
-
-
-

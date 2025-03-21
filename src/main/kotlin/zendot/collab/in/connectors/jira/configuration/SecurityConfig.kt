@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity
+import org.springframework.security.config.http.SessionCreationPolicy
 import org.springframework.security.oauth2.client.registration.ClientRegistration
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository
@@ -41,36 +42,46 @@ class SecurityConfig {
     @Bean
     fun securityFilterChain(http: HttpSecurity): SecurityFilterChain {
         http
-            .authorizeRequests()
-            .requestMatchers("/login", "/oauth/callback").permitAll() // Allow these paths
-            .anyRequest().authenticated()
-            .and()
-            .oauth2Login { oauth2 ->
-                oauth2.loginPage("/login") // Custom login page if needed
-                oauth2.defaultSuccessUrl("/dashboard", true) // Redirect after successful login
+            .csrf { csrf ->
+                csrf.disable() // Disable CSRF for simplicity
             }
-
+            .authorizeHttpRequests { auth ->
+                auth
+                    // Whitelist specific endpoints (no token required)
+                    .requestMatchers("/login", "/oauth/callback", "/converse/**").permitAll()
+                    .anyRequest().authenticated()
+            }
+            .oauth2Login { oauth2 ->
+                oauth2
+                    .loginPage("/login")
+                    .defaultSuccessUrl("/dashboard", true) // Redirect after successful login
+            }
+            .sessionManagement { session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+            }
         return http.build()
     }
+
 
     @Bean
     fun clientRegistrationRepository(): ClientRegistrationRepository {
         val clientRegistration = ClientRegistration.withRegistrationId("atlassian")
-            .clientId(clientId) // Use client ID from application.properties
-            .clientSecret(clientSecret) // Use client secret from application.properties
-            .scope(*scopes.split(" ").toTypedArray()) // Convert scopes string into an array
-            .redirectUri(redirectUri) // Redirect URI from application.properties
-            .authorizationUri(authorizationUri) // Authorization URI from application.properties
-            .tokenUri(tokenUri) // Token URI from application.properties
-            .userInfoUri(userInfoUri) // User info URI from application.properties
-            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE) // Set the authorization grant type
+            .clientId(clientId)
+            .clientSecret(clientSecret)
+            .scope(*scopes.split(" ").toTypedArray())
+            .redirectUri(redirectUri)
+            .authorizationUri(authorizationUri)
+            .tokenUri(tokenUri)
+            .userInfoUri(userInfoUri)
+            .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
             .build()
 
-        return InMemoryClientRegistrationRepository(clientRegistration) // Register client in memory
+        return InMemoryClientRegistrationRepository(clientRegistration)
     }
 
     @Bean
     fun oAuth2AuthorizedClientRepository(): OAuth2AuthorizedClientRepository {
-        return HttpSessionOAuth2AuthorizedClientRepository() // Store OAuth2 client in session
+        return HttpSessionOAuth2AuthorizedClientRepository()
     }
+
 }

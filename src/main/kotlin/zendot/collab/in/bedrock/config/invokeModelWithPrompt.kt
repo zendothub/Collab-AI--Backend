@@ -13,29 +13,25 @@ fun invokeModelWithPrompt(prompt: String): String {
     // Create the BedrockRuntime client
     val client = BedrockRuntimeClient.builder()
         .credentialsProvider(DefaultCredentialsProvider.create())
-        .region(Region.US_EAST_1) // Change to the desired region
+        .region(Region.US_EAST_1)
         .build()
 
-    val modelId = "ai21.j2-mid-v1" // Your model ID here
+    val modelId = "ai21.j2-mid-v1"
 
     // Create the request payload with the prompt
     val nativeRequestTemplate = "{ \"prompt\": \"{{prompt}}\" }"
     val nativeRequest = nativeRequestTemplate.replace("{{prompt}}", prompt)
 
     return try {
-        // Prepare the InvokeModelRequest with the payload
         val request = InvokeModelRequest.builder()
-            .body(SdkBytes.fromUtf8String(nativeRequest)) // Convert the request body to bytes
+            .body(SdkBytes.fromUtf8String(nativeRequest))
             .modelId(modelId)
             .build()
 
-        // Send the request and capture the response
         val response: InvokeModelResponse = client.invokeModel(request)
 
-        // Parse the response body (as JSON)
         val responseBody = JSONObject(response.body().asUtf8String())
 
-        // Extract the text from the response JSON
         val text = responseBody.getJSONArray("completions")
             .getJSONObject(0)
             .getJSONObject("data")
